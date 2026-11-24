@@ -308,9 +308,15 @@ with tab4:
     with col_id:
         st.markdown(f"### 🇮🇩 Berita Dalam Negeri (Skor: `{score_id:+.2f}`)")
         if not df_news_id.empty:
+            disp_id = df_news_id.copy()
+            disp_id["Judul"] = (
+                disp_id["Link"] + "#" + disp_id["Judul"].str.replace("#", "", regex=False)
+            )
             st.dataframe(
-                df_news_id[["Judul", "Sumber", "Skor Sentimen", "Label", "Link"]],
-                column_config={"Link": st.column_config.LinkColumn("Baca")},
+                disp_id[["Judul", "Sumber", "Skor Sentimen", "Label"]],
+                column_config={
+                    "Judul": st.column_config.LinkColumn("Judul", display_text=r"#([^#]*)$"),
+                },
                 use_container_width=True,
                 hide_index=True,
             )
@@ -320,9 +326,15 @@ with tab4:
     with col_gl:
         st.markdown(f"### 🌍 Berita Luar Negeri / Global (Skor: `{score_global:+.2f}`)")
         if not df_news_global.empty:
+            disp_gl = df_news_global.copy()
+            disp_gl["Judul"] = (
+                disp_gl["Link"] + "#" + disp_gl["Judul"].str.replace("#", "", regex=False)
+            )
             st.dataframe(
-                df_news_global[["Judul", "Sumber", "Skor Sentimen", "Label", "Link"]],
-                column_config={"Link": st.column_config.LinkColumn("Read")},
+                disp_gl[["Judul", "Sumber", "Skor Sentimen", "Label"]],
+                column_config={
+                    "Judul": st.column_config.LinkColumn("Judul", display_text=r"#([^#]*)$"),
+                },
                 use_container_width=True,
                 hide_index=True,
             )
