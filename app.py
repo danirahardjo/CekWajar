@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 
 from modules import (
+    analyze_entry_conviction,
     analyze_massive_volume,
     calculate_fair_value,
     calculate_trading_plan,
@@ -151,6 +152,49 @@ def halaman_analisa_emiten():
 
     st.info(f"**Status Valuasi Fundamental:** {valuation['status']}")
 
+    conviction = analyze_entry_conviction(
+        hist_df=hist_df,
+        valuation=valuation,
+        piotroski=info.get("piotroski") or {},
+        composite_sentiment=composite_sentiment,
+        period=period_opt,
+    )
+    bt = conviction["backtest"]
+    m_tech = conviction["metrics"]
+
+    with st.expander(
+        f"🎯 Skor Keyakinan Masuk (4 Pilar): {conviction['conviction_score']:.1f} / 100 — {conviction['action_label']}",
+        expanded=True,
+    ):
+        ck1, ck2, ck3, ck4 = st.columns(4)
+        ck1.metric(
+            "Skor Keyakinan Total",
+            f"{conviction['conviction_score']:.1f} / 100",
+            delta=f"{conviction['passed_count']}/{conviction['total_checks']} Syarat Terpenuhi",
+        )
+        ck2.metric(
+            "Arus Dana Institusi (CMF-20)",
+            f"{m_tech['cmf20']:+.2f}",
+            delta="Akumulasi 🟢" if m_tech["cmf20"] > 0.03 else ("Distribusi 🔴" if m_tech["cmf20"] < -0.03 else "Netral ⚪"),
+            delta_color="off",
+        )
+        ck3.metric(
+            "Kekuatan vs. IHSG (20D)",
+            f"{m_tech['alpha_vs_ihsg']:+.2f}%" if m_tech["has_ihsg"] else "-",
+            delta="Ungguli Pasar" if m_tech["alpha_vs_ihsg"] > 0 else "Tertinggal dari IHSG",
+        )
+        ck4.metric(
+            "Backtest Win Rate (10D)",
+            f"{bt['win_rate']:.1f}%" if bt["total_signals"] > 0 else "N/A",
+            delta=f"Avg {bt['avg_return']:+.2f}% ({bt['total_signals']} sinyal)" if bt["total_signals"] > 0 else "Belum ada sinyal historis",
+        )
+
+        st.dataframe(
+            pd.DataFrame(conviction["checklist"]),
+            use_container_width=True,
+            hide_index=True,
+        )
+        
     # ==========================================
     # TABS DETAIL ANALISIS
     # ==========================================
