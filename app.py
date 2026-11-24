@@ -313,9 +313,10 @@ with tab4:
                 disp_id["Link"] + "#" + disp_id["Judul"].str.replace("#", "", regex=False)
             )
             st.dataframe(
-                disp_id[["Judul", "Sumber", "Skor Sentimen", "Label"]],
+                disp_id[["Judul", "Tanggal", "Sumber", "Skor Sentimen", "Label"]],
                 column_config={
                     "Judul": st.column_config.LinkColumn("Judul", display_text=r"#([^#]*)$"),
+                    "Tanggal": st.column_config.TextColumn("Tanggal Publish"),
                 },
                 use_container_width=True,
                 hide_index=True,
@@ -331,9 +332,10 @@ with tab4:
                 disp_gl["Link"] + "#" + disp_gl["Judul"].str.replace("#", "", regex=False)
             )
             st.dataframe(
-                disp_gl[["Judul", "Sumber", "Skor Sentimen", "Label"]],
+                disp_gl[["Judul", "Tanggal", "Sumber", "Skor Sentimen", "Label"]],
                 column_config={
                     "Judul": st.column_config.LinkColumn("Judul", display_text=r"#([^#]*)$"),
+                    "Tanggal": st.column_config.TextColumn("Tanggal Publish"),
                 },
                 use_container_width=True,
                 hide_index=True,
