@@ -122,8 +122,8 @@ with col3:
         delta=f"{expected_change_pct:+.2f}%",
     )
 with col4:
-    sent_label = "Bullish 🟢" if composite_sentiment > 0.1 else ("Bearish 🔴" if composite_sentiment < -0.1 else "Netral ⚪")
-    st.metric("Skor Sentimen Gabungan", f"{composite_sentiment:+.2f} ({sent_label})")
+    sent_analisis = "Bullish 🟢" if composite_sentiment > 0.1 else ("Bearish 🔴" if composite_sentiment < -0.1 else "Netral ⚪")
+    st.metric("Skor Sentimen Gabungan", f"{composite_sentiment:+.2f} ({sent_analisis})")
 
 st.info(f"**Status Valuasi Fundamental:** {valuation['status']}")
 
@@ -332,7 +332,7 @@ with tab4:
                 disp_gl["Link"] + "#" + disp_gl["Judul"].str.replace("#", "", regex=False)
             )
             st.dataframe(
-                disp_gl[["Judul", "Tanggal", "Sumber", "Skor Sentimen", "Label"]],
+                disp_gl[["Judul", "Tanggal", "Sumber", "Skor Sentimen", "Analisis"]],
                 column_config={
                     "Judul": st.column_config.LinkColumn("Judul", display_text=r"#([^#]*)$"),
                     "Tanggal": st.column_config.TextColumn("Tanggal Publish"),
