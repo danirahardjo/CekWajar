@@ -1,3 +1,5 @@
+from datetime import timedelta, timezone
+from email.utils import parsedate_to_datetime
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -48,6 +50,19 @@ def analyze_headline_sentiment(text: str) -> float:
     return float(np.tanh(score / 2.5))
 
 
+def _format_pub_date_wib(pub_date_str: str) -> tuple[str, float]:
+    """Mengonversi pubDate RSS (GMT) menjadi format tanggal WIB serta timestamp untuk pengurutan."""
+    if not pub_date_str:
+        return "-", 0.0
+    try:
+        dt = parsedate_to_datetime(pub_date_str)
+        wib_tz = timezone(timedelta(hours=7))
+        dt_wib = dt.astimezone(wib_tz)
+        return dt_wib.strftime("%d %b %Y, %H:%M WIB"), dt_wib.timestamp()
+    except Exception:
+        return pub_date_str[:16], 0.0
+
+
 def fetch_google_news_rss(query: str, region: str = "ID", max_items: int = 10) -> list[dict]:
     """Mengambil berita terkini dari Google News RSS tanpa memerlukan API Key."""
     encoded_q = urllib.parse.quote(query)
@@ -67,11 +82,13 @@ def fetch_google_news_rss(query: str, region: str = "ID", max_items: int = 10) -
             link = item.findtext("link", default="")
             pub_date = item.findtext("pubDate", default="")
             source = item.findtext("source", default="Google News")
+            formatted_date, timestamp = _format_pub_date_wib(pub_date)
             sentiment = analyze_headline_sentiment(title)
             articles.append({
                 "Judul": title,
                 "Sumber": source,
-                "Tanggal": pub_date[:16] if pub_date else "-",
+                "Tanggal": formatted_date,
+                "_ts": timestamp,
                 "Skor Sentimen": round(sentiment, 3),
                 "Label": "Bullish 🟢" if sentiment > 0.15 else ("Bearish 🔴" if sentiment < -0.15 else "Netral ⚪"),
                 "Link": link,
@@ -83,7 +100,7 @@ def fetch_google_news_rss(query: str, region: str = "ID", max_items: int = 10) -
 
 @st.cache_data(ttl=1800)
 def get_dual_market_news(base_code: str, company_name: str):
-    """Mengambil berita dalam negeri (Indonesia) dan luar negeri (Global)."""
+    """Mengambil berita dalam negeri (Indonesia) dan luar negeri (Global) terurut dari yang terbaru."""
     short_name = company_name.replace("PT ", "").replace(" Tbk", "").strip() if company_name else base_code
     query_id = f'"{base_code}" OR "{short_name}" saham'
     query_global = f'"{short_name}" OR "{base_code}" Indonesia stock OR economy'
@@ -92,7 +109,12 @@ def get_dual_market_news(base_code: str, company_name: str):
     news_global = fetch_google_news_rss(query_global, region="US", max_items=10)
 
     df_id = pd.DataFrame(news_id)
+    if not df_id.empty:
+        df_id = df_id.sort_values("_ts", ascending=False).drop(columns=["_ts"]).reset_index(drop=True)
+
     df_global = pd.DataFrame(news_global)
+    if not df_global.empty:
+        df_global = df_global.sort_values("_ts", ascending=False).drop(columns=["_ts"]).reset_index(drop=True)
 
     score_id = float(df_id["Skor Sentimen"].mean()) if not df_id.empty else 0.0
     score_global = float(df_global["Skor Sentimen"].mean()) if not df_global.empty else 0.0
