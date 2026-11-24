@@ -1,4 +1,5 @@
 from .charts import create_forecast_chart, create_volume_radar_chart
+from .expert_analysis import calculate_trading_plan
 from .forecasting import build_features, train_and_forecast
 from .market_data import fetch_intraday_volume_data, fetch_stock_data
 from .sentiment import analyze_headline_sentiment, get_dual_market_news
@@ -9,6 +10,7 @@ __all__ = [
     "fetch_stock_data",
     "fetch_intraday_volume_data",
     "calculate_fair_value",
+    "calculate_trading_plan",
     "analyze_headline_sentiment",
     "get_dual_market_news",
     "build_features",
