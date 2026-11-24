@@ -475,5 +475,11 @@ pg = st.navigation([
         icon="📡",
         url_path="radar-volume-pasar",
     ),
+    st.Page(
+        "pages/2_Screener_Valuasi_Fundamental.py",
+        title="Screener Valuasi & F-Score",
+        icon="💎",
+        url_path="screener-valuasi",
+    ),
 ])
 pg.run()
