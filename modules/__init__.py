@@ -12,6 +12,7 @@ __all__ = [
     "fetch_intraday_volume_data",
     "calculate_fair_value",
     "analyze_entry_conviction",
+    "analyze_entry_conviction",
     "calculate_trading_plan",
     "scan_fundamental_screener",
     "analyze_headline_sentiment",
