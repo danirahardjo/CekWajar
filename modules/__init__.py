@@ -7,6 +7,11 @@ from .sentiment import analyze_headline_sentiment, get_dual_market_news
 from .valuation import calculate_fair_value
 from .volume_radar import IDX_WATCHLISTS, analyze_massive_volume, scan_market_volume_screener
 
+try:
+    from .fundamental_screener import scan_fundamental_screener
+except ImportError:
+    scan_fundamental_screener = None
+    
 __all__ = [
     "fetch_stock_data",
     "fetch_intraday_volume_data",
