@@ -51,6 +51,7 @@ with st.sidebar:
     st.subheader("📐 Asumsi Valuasi Wajar")
     fair_per = st.slider("Target PER Wajar (x)", min_value=5.0, max_value=30.0, value=15.0, step=0.5)
     fair_pbv = st.slider("Target PBV Wajar (x)", min_value=0.5, max_value=6.0, value=2.0, step=0.1)
+    discount_rate_pct = st.slider("Tingkat Diskonto / Required Return (%)", min_value=8.0, max_value=16.0, value=11.0, step=0.5)
 
     st.divider()
     st.subheader("📰 Bobot Sentimen Berita")
@@ -79,10 +80,29 @@ raw_bvps = info.get("bookValue")
 with st.sidebar:
     st.divider()
     st.subheader("🧾 Data Fundamental (Opsional Override)")
+    hist_per_ref = info.get("histMedianPER")
+    hist_pbv_ref = info.get("histMedianPBV")
+    if hist_per_ref or hist_pbv_ref:
+        st.caption(
+            f"Referensi Median Historis Emiten: **PER {hist_per_ref or '-'}x** | **PBV {hist_pbv_ref or '-'}x**"
+        )
     eps_val = st.number_input("EPS (Laba per Saham - Rp)", value=float(raw_eps) if raw_eps else 0.0, step=10.0)
     bvps_val = st.number_input("BVPS (Nilai Buku per Saham - Rp)", value=float(raw_bvps) if raw_bvps else 0.0, step=50.0)
 
-valuation = calculate_fair_value(current_price, eps_val, bvps_val, fair_per, fair_pbv)
+valuation = calculate_fair_value(
+    current_price=current_price,
+    eps=eps_val,
+    bvps=bvps_val,
+    fair_per=fair_per,
+    fair_pbv=fair_pbv,
+    sector=sector,
+    roe=float(info.get("returnOnEquity") or 0.0),
+    earnings_growth=float(info.get("earningsGrowth") or 0.0),
+    dividend_yield=float(info.get("dividendYield") or 0.0),
+    fcf_per_share=float(info.get("fcfPerShare") or 0.0),
+    net_debt_per_share=float(info.get("netDebtPerShare") or 0.0),
+    discount_rate=discount_rate_pct / 100.0,
+)
 
 base_code = clean_ticker.replace(".JK", "")
 df_news_id, df_news_global, score_id, score_global = get_dual_market_news(base_code, company_name)
