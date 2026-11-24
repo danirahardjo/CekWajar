@@ -292,25 +292,25 @@ with tab2:
         st.dataframe(disp_forecast.style.format("Rp {:,.0f}"), use_container_width=True)
 
 with tab3:
-    st.markdown("### Perbandingan Metode Valuasi Intrinsik & Relatif")
-    if valuation["models"]:
-        val_rows = []
-        for method_name, fair_val in valuation["models"].items():
-            diff_pct = ((fair_val - current_price) / current_price) * 100
-            val_rows.append({
-                "Metode Valuasi": method_name,
-                "Harga Wajar (Rp)": fair_val,
-                "Harga Pasar (Rp)": current_price,
-                "Potensi Upside/Downside (%)": diff_pct,
-            })
-        df_val = pd.DataFrame(val_rows)
+    st.markdown("### Valuasi Tertimbang Multi-Model (*Sector-Aware*)")
+    st.caption(f"**Profil Pembobotan Aktif:** {valuation['profile']}")
+
+    if valuation["details"]:
+        df_val = pd.DataFrame(valuation["details"])
+
+        def highlight_upside_downside(val):
+            color = "#FF4B4B" if val < 0 else "#00CC96"
+            return f"color: {color}; font-weight: bold;"
+
         st.dataframe(
             df_val.style.format({
                 "Harga Wajar (Rp)": "Rp {:,.0f}",
-                "Harga Pasar (Rp)": "Rp {:,.0f}",
+                "Bobot (%)": "{:.1f}%",
+                "Kontribusi (Rp)": "Rp {:,.0f}",
                 "Potensi Upside/Downside (%)": "{:+.2f}%",
-            }),
+            }).map(highlight_upside_downside, subset=["Potensi Upside/Downside (%)"]),
             use_container_width=True,
+            hide_index=True,
         )
     else:
         st.warning("EPS atau BVPS bernilai nol/negatif. Silakan masukkan estimasi EPS/BVPS secara manual di sidebar kiri.")
@@ -322,7 +322,7 @@ with tab3:
     f_col3.metric("Return on Equity (ROE)", f"{info.get('returnOnEquity', 0)*100:.2f}%" if info.get("returnOnEquity") else "-")
     div_yield = info.get("dividendYield")
     f_col4.metric("Dividend Yield", f"{div_yield*100:.2f}%" if div_yield and div_yield < 1 else (f"{div_yield:.2f}%" if div_yield else "-"))
-
+    
 with tab4:
     col_id, col_gl = st.columns(2)
     with col_id:
