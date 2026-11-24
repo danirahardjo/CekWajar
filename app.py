@@ -108,10 +108,12 @@ with col1:
     st.metric("Harga Pasar Saat Ini", f"Rp {current_price:,.0f}")
 with col2:
     fv = valuation["composite"]
+    mos_val = valuation["mos_pct"]
     st.metric(
         "Estimasi Harga Wajar",
         f"Rp {fv:,.0f}" if fv > 0 else "N/A",
-        delta=f"MoS {valuation['mos_pct']:+.1f}%" if fv > 0 else None,
+        delta=f"{mos_val:+.1f}% (MoS)" if fv > 0 else None,
+        delta_color="normal",
     )
 with col3:
     st.metric(
