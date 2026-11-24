@@ -345,24 +345,5 @@ with tab4:
         else:
             st.info("Tidak ditemukan berita internasional terbaru untuk emiten ini.")
 
-    with col_gl:
-        st.markdown(f"### 🌍 Berita Luar Negeri / Global (Skor: `{score_global:+.2f}`)")
-        if not df_news_global.empty:
-            disp_gl = df_news_global.copy()
-            disp_gl["Judul"] = (
-                disp_gl["Link"] + "#" + disp_gl["Judul"].str.replace("#", "", regex=False)
-            )
-            st.dataframe(
-                disp_gl[["Judul", "Tanggal", "Sumber", "Skor Sentimen", "Analisis"]],
-                column_config={
-                    "Judul": st.column_config.LinkColumn("Judul", display_text=r"#([^#]*)$"),
-                    "Tanggal": st.column_config.TextColumn("Tanggal Publish"),
-                },
-                use_container_width=True,
-                hide_index=True,
-            )
-        else:
-            st.info("Tidak ditemukan berita internasional terbaru untuk emiten ini.")
-
 st.divider()
 st.caption("⚠️ **Disclaimer:** CekWajar adalah alat bantu riset kuantitatif. Hasil valuasi, deteksi volume, dan prediksi Machine Learning bukan merupakan ajakan membeli atau menjual saham (DYOR).")
