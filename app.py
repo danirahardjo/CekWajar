@@ -4,6 +4,7 @@ import streamlit as st
 from modules import (
     analyze_massive_volume,
     calculate_fair_value,
+    calculate_trading_plan,
     create_forecast_chart,
     create_volume_radar_chart,
     fetch_intraday_volume_data,
@@ -153,11 +154,12 @@ def halaman_analisa_emiten():
     # ==========================================
     # TABS DETAIL ANALISIS
     # ==========================================
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "⚡ Deteksi Volume Masif (Real-Time)",
         "📊 Grafik Prediksi & Harga Wajar",
         "💰 Rincian Valuasi Fundamental",
         "📰 Analisis Berita Dalam & Luar Negeri",
+        "🛡️ Skor Kesehatan & Trading Plan",
     ])
 
     with tab1:
@@ -368,6 +370,90 @@ def halaman_analisa_emiten():
             else:
                 st.info("Tidak ditemukan berita internasional terbaru untuk emiten ini.")
 
+    with tab5:
+        st.markdown("### 1. Skor Kesehatan Laporan Keuangan (Piotroski F-Score)")
+        pio = info.get("piotroski") or {}
+        score_9 = pio.get("score_9", 0)
+        raw_sc = pio.get("raw_score", 0)
+        max_ev = pio.get("max_evaluable", 0)
+
+        p_col1, p_col2 = st.columns([1, 2])
+        with p_col1:
+            st.metric(
+                "Piotroski F-Score",
+                f"{score_9} / 9" if max_ev > 0 else "N/A",
+                delta=f"Lulus {raw_sc} dari {max_ev} kriteria" if max_ev > 0 else None,
+            )
+        with p_col2:
+            st.info(f"**Kesimpulan Kesehatan Fundamental:** {pio.get('verdict', 'Tidak Tersedia')}")
+
+        if pio.get("criteria"):
+            st.dataframe(
+                pd.DataFrame(pio["criteria"]),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        st.divider()
+        st.markdown("### 2. Smart Trading Plan & Kalkulator Lot (Manajemen Risiko BEI)")
+        mm_col1, mm_col2 = st.columns(2)
+        with mm_col1:
+            modal_rp = st.number_input(
+                "Total Modal Trading / Investasi (Rp)",
+                min_value=100_000,
+                value=10_000_000,
+                step=1_000_000,
+            )
+        with mm_col2:
+            risiko_pct = st.slider(
+                "Batas Maksimal Kerugian per Transaksi (% Modal)",
+                min_value=0.5,
+                max_value=5.0,
+                value=2.0,
+                step=0.5,
+            )
+
+        plan = calculate_trading_plan(
+            hist_df=hist_df,
+            current_price=current_price,
+            fair_value=valuation["composite"],
+            capital_rp=float(modal_rp),
+            max_risk_pct=float(risiko_pct),
+        )
+
+        st.info(f"**Evaluasi Risk-to-Reward:** {plan['setup_verdict']}")
+
+        t_c1, t_c2, t_c3, t_c4 = st.columns(4)
+        t_c1.metric(
+            "Area Beli Ideal (Support)",
+            f"Rp {plan['entry_ideal']:,}",
+            delta=f"Support 20D: Rp {plan['sup_20']:,}",
+            delta_color="off",
+        )
+        t_c2.metric(
+            "Batas Stop Loss (ATR)",
+            f"Rp {plan['stop_loss']:,}",
+            delta=f"-{plan['risk_pct_trade']:.2f}% dari harga kini",
+            delta_color="inverse",
+        )
+        t_c3.metric(
+            "Target Profit 1 (TP1)",
+            f"Rp {plan['tp1']:,}",
+            delta=f"+{plan['reward1_pct']:.2f}% (R:R 1:{plan['rr_ratio_1']:.1f})",
+        )
+        t_c4.metric(
+            "Target Profit 2 (TP2)",
+            f"Rp {plan['tp2']:,}",
+            delta=f"+{plan['reward2_pct']:.2f}% (R:R 1:{plan['rr_ratio_2']:.1f})",
+        )
+
+        st.markdown("#### 🧮 Rekomendasi Ukuran Posisi (1 Lot = 100 Lembar)")
+        l_c1, l_c2, l_c3, l_c4 = st.columns(4)
+        l_c1.metric("Maksimal Pembelian", f"{plan['recommended_lots']:,} Lot")
+        l_c2.metric("Estimasi Nilai Beli", f"Rp {plan['total_buy_rp']:,.0f}")
+        l_c3.metric("Potensi Profit (TP1)", f"+Rp {plan['est_profit_tp1_rp']:,.0f}")
+        l_c4.metric("Maks. Risiko Jika Kena SL", f"-Rp {plan['est_loss_if_sl_rp']:,.0f}")
+        
     st.divider()
     st.caption("⚠️ **Disclaimer:** CekWajar adalah alat bantu riset kuantitatif. Hasil valuasi, deteksi volume, dan prediksi Machine Learning bukan merupakan ajakan membeli atau menjual saham (DYOR).")
 
