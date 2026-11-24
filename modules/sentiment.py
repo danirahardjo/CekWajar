@@ -51,14 +51,14 @@ def analyze_headline_sentiment(text: str) -> float:
 
 
 def _format_pub_date_wib(pub_date_str: str) -> tuple[str, float]:
-    """Mengonversi pubDate RSS (GMT) menjadi format tanggal WIB serta timestamp untuk pengurutan."""
+    """Mengonversi pubDate RSS menjadi format tanggal saja (contoh: 07 Oct 2026) serta timestamp untuk pengurutan."""
     if not pub_date_str:
         return "-", 0.0
     try:
         dt = parsedate_to_datetime(pub_date_str)
         wib_tz = timezone(timedelta(hours=7))
         dt_wib = dt.astimezone(wib_tz)
-        return dt_wib.strftime("%d %b %Y, %H:%M WIB"), dt_wib.timestamp()
+        return dt_wib.strftime("%d %b %Y"), dt_wib.timestamp()
     except Exception:
         return pub_date_str[:16], 0.0
 
