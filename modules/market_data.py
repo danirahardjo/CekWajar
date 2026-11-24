@@ -18,6 +18,132 @@ def _get_usdidr_rate() -> float:
     return 16200.0
 
 
+def _get_two_years_row(df: pd.DataFrame | None, row_names: list[str]) -> tuple[float | None, float | None]:
+    """Mengambil nilai tahun terbaru (t) dan tahun sebelumnya (t-1) dari tabel laporan keuangan."""
+    if df is None or df.empty:
+        return None, None
+    for name in row_names:
+        if name in df.index:
+            vals = df.loc[name].dropna()
+            if len(vals) >= 2:
+                return float(vals.iloc[0]), float(vals.iloc[1])
+            if len(vals) == 1:
+                return float(vals.iloc[0]), None
+    return None, None
+
+
+def _compute_piotroski_fscore(
+    a_inc: pd.DataFrame | None,
+    bs: pd.DataFrame | None,
+    cf: pd.DataFrame | None,
+) -> dict:
+    """Menghitung 9 kriteria Piotroski F-Score untuk mendeteksi kesehatan fundamental & value trap."""
+    criteria = []
+    score = 0
+    max_evaluable = 0
+
+    ni_t, ni_prev = _get_two_years_row(a_inc, ["Net Income", "Net Income Common Stockholders"])
+    ocf_t, _ = _get_two_years_row(cf, ["Operating Cash Flow", "Cash Flow From Continuing Operating Activities"])
+    assets_t, assets_prev = _get_two_years_row(bs, ["Total Assets"])
+    ltd_t, ltd_prev = _get_two_years_row(bs, ["Long Term Debt", "Long Term Debt And Capital Lease Obligation"])
+    ca_t, ca_prev = _get_two_years_row(bs, ["Current Assets"])
+    cl_t, cl_prev = _get_two_years_row(bs, ["Current Liabilities"])
+    sh_t, sh_prev = _get_two_years_row(bs, ["Ordinary Shares Number", "Share Issued", "Basic Average Shares"])
+    gp_t, gp_prev = _get_two_years_row(a_inc, ["Gross Profit"])
+    rev_t, rev_prev = _get_two_years_row(a_inc, ["Total Revenue", "Operating Revenue"])
+
+    # 1. Profitabilitas: ROA / Laba Bersih Positif
+    if ni_t is not None:
+        max_evaluable += 1
+        passed = ni_t > 0
+        score += int(passed)
+        criteria.append({"Kategori": "Profitabilitas", "Kriteria": "Laba Bersih Positif (ROA > 0)", "Status": "✅ Lulus" if passed else "❌ Gagal"})
+
+    # 2. Profitabilitas: Operating Cash Flow Positif
+    if ocf_t is not None:
+        max_evaluable += 1
+        passed = ocf_t > 0
+        score += int(passed)
+        criteria.append({"Kategori": "Profitabilitas", "Kriteria": "Arus Kas Operasi Positif (CFO > 0)", "Status": "✅ Lulus" if passed else "❌ Gagal"})
+
+    # 3. Profitabilitas: Kenaikan ROA YoY
+    if ni_t is not None and ni_prev is not None and assets_t and assets_prev and assets_t > 0 and assets_prev > 0:
+        max_evaluable += 1
+        roa_t = ni_t / assets_t
+        roa_prev = ni_prev / assets_prev
+        passed = roa_t > roa_prev
+        score += int(passed)
+        criteria.append({"Kategori": "Profitabilitas", "Kriteria": f"ROA Meningkat ({roa_prev*100:.1f}% → {roa_t*100:.1f}%)", "Status": "✅ Lulus" if passed else "❌ Gagal"})
+
+    # 4. Profitabilitas: Kualitas Laba (Akrual: CFO > Net Income)
+    if ocf_t is not None and ni_t is not None:
+        max_evaluable += 1
+        passed = ocf_t > ni_t
+        score += int(passed)
+        criteria.append({"Kategori": "Profitabilitas", "Kriteria": "Kualitas Laba (Arus Kas Operasi > Laba Bersih)", "Status": "✅ Lulus" if passed else "❌ Gagal"})
+
+    # 5. Leverage: Rasio Utang Jangka Panjang Turun
+    if ltd_t is not None and ltd_prev is not None and assets_t and assets_prev and assets_t > 0 and assets_prev > 0:
+        max_evaluable += 1
+        lev_t = ltd_t / assets_t
+        lev_prev = ltd_prev / assets_prev
+        passed = lev_t <= lev_prev
+        score += int(passed)
+        criteria.append({"Kategori": "Kesehatan Utang", "Kriteria": f"Rasio Utang Jk. Panjang Turun ({lev_prev*100:.1f}% → {lev_t*100:.1f}%)", "Status": "✅ Lulus" if passed else "❌ Gagal"})
+
+    # 6. Likuiditas: Current Ratio Naik
+    if ca_t is not None and ca_prev is not None and cl_t and cl_prev and cl_t > 0 and cl_prev > 0:
+        max_evaluable += 1
+        cr_t = ca_t / cl_t
+        cr_prev = ca_prev / cl_prev
+        passed = cr_t > cr_prev
+        score += int(passed)
+        criteria.append({"Kategori": "Likuiditas", "Kriteria": f"Current Ratio Membaik ({cr_prev:.2f}x → {cr_t:.2f}x)", "Status": "✅ Lulus" if passed else "❌ Gagal"})
+
+    # 7. Struktur Modal: Tidak Ada Dilusi Saham Baru
+    if sh_t is not None and sh_prev is not None and sh_prev > 0:
+        max_evaluable += 1
+        passed = sh_t <= (sh_prev * 1.01)
+        score += int(passed)
+        criteria.append({"Kategori": "Struktur Modal", "Kriteria": "Tidak Ada Dilusi Saham (Rights Issue / PP)", "Status": "✅ Lulus" if passed else "❌ Gagal"})
+
+    # 8. Efisiensi Operasi: Gross Margin Meningkat
+    if gp_t is not None and gp_prev is not None and rev_t and rev_prev and rev_t > 0 and rev_prev > 0:
+        max_evaluable += 1
+        gm_t = gp_t / rev_t
+        gm_prev = gp_prev / rev_prev
+        passed = gm_t > gm_prev
+        score += int(passed)
+        criteria.append({"Kategori": "Efisiensi Operasi", "Kriteria": f"Gross Margin Naik ({gm_prev*100:.1f}% → {gm_t*100:.1f}%)", "Status": "✅ Lulus" if passed else "❌ Gagal"})
+
+    # 9. Efisiensi Operasi: Asset Turnover Meningkat
+    if rev_t is not None and rev_prev is not None and assets_t and assets_prev and assets_t > 0 and assets_prev > 0:
+        max_evaluable += 1
+        at_t = rev_t / assets_t
+        at_prev = rev_prev / assets_prev
+        passed = at_t > at_prev
+        score += int(passed)
+        criteria.append({"Kategori": "Efisiensi Operasi", "Kriteria": f"Perputaran Aset Naik ({at_prev:.2f}x → {at_t:.2f}x)", "Status": "✅ Lulus" if passed else "❌ Gagal"})
+
+    normalized_9 = round((score / max_evaluable) * 9) if max_evaluable > 0 else 0
+    if max_evaluable == 0:
+        verdict = "Data Laporan Keuangan Tidak Tersedia"
+    elif normalized_9 >= 7:
+        verdict = "SANGAT SEHAT (Fundamental Prima) 🟢"
+    elif normalized_9 >= 4:
+        verdict = "CUKUP SEHAT (Moderat) 🟡"
+    else:
+        verdict = "RAWAN VALUE TRAP (Fundamental Lemah) 🔴"
+
+    return {
+        "raw_score": score,
+        "max_evaluable": max_evaluable,
+        "score_9": normalized_9,
+        "verdict": verdict,
+        "criteria": criteria,
+    }
+
+
 def _extract_fundamental_fallback(ticker: yf.Ticker, info: dict, hist: pd.DataFrame) -> dict:
     """Mengambil metrik fundamental lengkap dari laporan keuangan serta menyelaraskan mata uang ke IDR."""
     enriched = dict(info)
@@ -49,7 +175,15 @@ def _extract_fundamental_fallback(ticker: yf.Ticker, info: dict, hist: pd.DataFr
     except Exception:
         pass
 
-    # 1. Fallback EPS (pertahankan presisi penuh sebelum konversi kurs)
+    # Hitung Piotroski F-Score dari laporan tahunan & neraca
+    annual_bs = None
+    try:
+        annual_bs = ticker.balance_sheet
+    except Exception:
+        annual_bs = bs
+    enriched["piotroski"] = _compute_piotroski_fscore(a_inc, annual_bs, cf)
+
+    # 1. Fallback EPS
     if not enriched.get("trailingEps"):
         if q_inc is not None and not q_inc.empty:
             for row_name in ["Diluted EPS", "Basic EPS"]:
@@ -95,7 +229,7 @@ def _extract_fundamental_fallback(ticker: yf.Ticker, info: dict, hist: pd.DataFr
     if not enriched.get("bookValue") and equity and shares and shares > 0:
         enriched["bookValue"] = equity / shares
 
-    # 3. Fallback ROE (Net Income / Total Ekuitas)
+    # 3. Fallback ROE
     if not enriched.get("returnOnEquity") and equity and equity > 0:
         net_inc = None
         if q_inc is not None and not q_inc.empty and "Net Income" in q_inc.index:
@@ -119,7 +253,7 @@ def _extract_fundamental_fallback(ticker: yf.Ticker, info: dict, hist: pd.DataFr
                     enriched["earningsGrowth"] = float(np.clip(growth, -0.30, 0.40))
                     break
 
-    # 5. Free Cash Flow per Share & Net Debt per Share (untuk DCF)
+    # 5. Free Cash Flow per Share & Net Debt per Share
     if shares and shares > 0:
         fcf = enriched.get("freeCashflow")
         if fcf is None and cf is not None and not cf.empty:
@@ -146,13 +280,12 @@ def _extract_fundamental_fallback(ticker: yf.Ticker, info: dict, hist: pd.DataFr
                     break
             enriched["netDebtPerShare"] = (total_debt - cash_val) / shares
 
-    # 6. Deteksi & Konversi Mata Uang Laporan Keuangan (USD -> IDR)
+    # 6. Konversi Mata Uang Laporan Keuangan (USD -> IDR)
     eps_raw = float(enriched.get("trailingEps") or 0.0)
     bvps_raw = float(enriched.get("bookValue") or 0.0)
     fin_curr = (enriched.get("financialCurrency") or "").upper()
 
     is_usd_report = fin_curr == "USD"
-    # Deteksi otomatis jika ticker.info kosong namun rasio harga/BVPS & harga/EPS tidak wajar (>300x)
     if not fin_curr and current_price >= 50:
         pbv_unrealistic = bvps_raw > 0 and (current_price / bvps_raw) > 300
         per_unrealistic = eps_raw <= 0 or (current_price / eps_raw) > 300
@@ -176,7 +309,7 @@ def _extract_fundamental_fallback(ticker: yf.Ticker, info: dict, hist: pd.DataFr
     if enriched.get("bookValue"):
         enriched["bookValue"] = round(float(enriched["bookValue"]), 2)
 
-    # 7. Median Historis PER & PBV Emiten (setelah penyelarasan kurs)
+    # 7. Median Historis PER & PBV Emiten
     if not hist.empty:
         median_hist_price = float(hist["Close"].median())
         eps_now = float(enriched.get("trailingEps") or 0)
