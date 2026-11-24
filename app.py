@@ -313,16 +313,37 @@ with tab4:
                 disp_id["Link"] + "#" + disp_id["Judul"].str.replace("#", "", regex=False)
             )
             st.dataframe(
-                disp_id[["Judul", "Tanggal", "Sumber", "Skor Sentimen", "Analisis"]],
+                disp_id[["Judul", "Tanggal", "Sumber", "Skor Sentimen", "Label"]],
                 column_config={
                     "Judul": st.column_config.LinkColumn("Judul", display_text=r"#([^#]*)$"),
                     "Tanggal": st.column_config.TextColumn("Tanggal Publish"),
+                    "Label": st.column_config.TextColumn("Analisis"),
                 },
                 use_container_width=True,
                 hide_index=True,
             )
         else:
             st.info("Tidak ditemukan berita domestik terbaru untuk kata kunci ini.")
+
+    with col_gl:
+        st.markdown(f"### 🌍 Berita Luar Negeri / Global (Skor: `{score_global:+.2f}`)")
+        if not df_news_global.empty:
+            disp_gl = df_news_global.copy()
+            disp_gl["Judul"] = (
+                disp_gl["Link"] + "#" + disp_gl["Judul"].str.replace("#", "", regex=False)
+            )
+            st.dataframe(
+                disp_gl[["Judul", "Tanggal", "Sumber", "Skor Sentimen", "Label"]],
+                column_config={
+                    "Judul": st.column_config.LinkColumn("Judul", display_text=r"#([^#]*)$"),
+                    "Tanggal": st.column_config.TextColumn("Tanggal Publish"),
+                    "Label": st.column_config.TextColumn("Analisis"),
+                },
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.info("Tidak ditemukan berita internasional terbaru untuk emiten ini.")
 
     with col_gl:
         st.markdown(f"### 🌍 Berita Luar Negeri / Global (Skor: `{score_global:+.2f}`)")
