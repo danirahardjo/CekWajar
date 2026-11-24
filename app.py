@@ -313,7 +313,7 @@ with tab4:
                 disp_id["Link"] + "#" + disp_id["Judul"].str.replace("#", "", regex=False)
             )
             st.dataframe(
-                disp_id[["Judul", "Tanggal", "Sumber", "Skor Sentimen", "Label"]],
+                disp_id[["Judul", "Tanggal", "Sumber", "Skor Sentimen", "Analisis"]],
                 column_config={
                     "Judul": st.column_config.LinkColumn("Judul", display_text=r"#([^#]*)$"),
                     "Tanggal": st.column_config.TextColumn("Tanggal Publish"),
