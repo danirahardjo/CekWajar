@@ -4,9 +4,24 @@ import streamlit as st
 import yfinance as yf
 
 
+@st.cache_data(ttl=3600)
+def _get_usdidr_rate() -> float:
+    """Mengambil kurs terkini USD ke IDR dari Yahoo Finance dengan cadangan default."""
+    try:
+        fx = yf.Ticker("USDIDR=X").history(period="5d")
+        if not fx.empty:
+            rate = float(fx["Close"].dropna().iloc[-1])
+            if rate > 1000:
+                return rate
+    except Exception:
+        pass
+    return 16200.0
+
+
 def _extract_fundamental_fallback(ticker: yf.Ticker, info: dict, hist: pd.DataFrame) -> dict:
-    """Mengambil metrik fundamental lengkap dari laporan keuangan jika endpoint ticker.info dibatasi."""
+    """Mengambil metrik fundamental lengkap dari laporan keuangan serta menyelaraskan mata uang ke IDR."""
     enriched = dict(info)
+    current_price = float(enriched.get("currentPrice") or (hist["Close"].iloc[-1] if not hist.empty else 0.0))
 
     q_inc = None
     a_inc = None
@@ -34,21 +49,21 @@ def _extract_fundamental_fallback(ticker: yf.Ticker, info: dict, hist: pd.DataFr
     except Exception:
         pass
 
-    # 1. Fallback EPS (TTM dari kuartalan, atau tahunan terbaru)
+    # 1. Fallback EPS (pertahankan presisi penuh sebelum konversi kurs)
     if not enriched.get("trailingEps"):
         if q_inc is not None and not q_inc.empty:
             for row_name in ["Diluted EPS", "Basic EPS"]:
                 if row_name in q_inc.index:
                     vals = q_inc.loc[row_name].dropna().iloc[:4]
                     if len(vals) > 0:
-                        enriched["trailingEps"] = round(float(vals.sum()) * (4.0 / len(vals)), 2)
+                        enriched["trailingEps"] = float(vals.sum()) * (4.0 / len(vals))
                         break
         if not enriched.get("trailingEps") and a_inc is not None and not a_inc.empty:
             for row_name in ["Diluted EPS", "Basic EPS"]:
                 if row_name in a_inc.index:
                     vals = a_inc.loc[row_name].dropna()
                     if len(vals) > 0:
-                        enriched["trailingEps"] = round(float(vals.iloc[0]), 2)
+                        enriched["trailingEps"] = float(vals.iloc[0])
                         break
 
     # 2. Ekuitas, Jumlah Saham Beredar & BVPS
@@ -78,7 +93,7 @@ def _extract_fundamental_fallback(ticker: yf.Ticker, info: dict, hist: pd.DataFr
         enriched["sharesOutstanding"] = shares
 
     if not enriched.get("bookValue") and equity and shares and shares > 0:
-        enriched["bookValue"] = round(equity / shares, 2)
+        enriched["bookValue"] = equity / shares
 
     # 3. Fallback ROE (Net Income / Total Ekuitas)
     if not enriched.get("returnOnEquity") and equity and equity > 0:
@@ -131,7 +146,37 @@ def _extract_fundamental_fallback(ticker: yf.Ticker, info: dict, hist: pd.DataFr
                     break
             enriched["netDebtPerShare"] = (total_debt - cash_val) / shares
 
-    # 6. Median Historis PER & PBV Emiten (Mean Reversion Reference)
+    # 6. Deteksi & Konversi Mata Uang Laporan Keuangan (USD -> IDR)
+    eps_raw = float(enriched.get("trailingEps") or 0.0)
+    bvps_raw = float(enriched.get("bookValue") or 0.0)
+    fin_curr = (enriched.get("financialCurrency") or "").upper()
+
+    is_usd_report = fin_curr == "USD"
+    # Deteksi otomatis jika ticker.info kosong namun rasio harga/BVPS & harga/EPS tidak wajar (>300x)
+    if not fin_curr and current_price >= 50:
+        pbv_unrealistic = bvps_raw > 0 and (current_price / bvps_raw) > 300
+        per_unrealistic = eps_raw <= 0 or (current_price / eps_raw) > 300
+        if pbv_unrealistic and per_unrealistic:
+            is_usd_report = True
+
+    if is_usd_report:
+        fx_rate = _get_usdidr_rate()
+        enriched["financialCurrency"] = f"USD (Kurs Rp {fx_rate:,.0f})"
+        if enriched.get("trailingEps"):
+            enriched["trailingEps"] = float(enriched["trailingEps"]) * fx_rate
+        if enriched.get("bookValue"):
+            enriched["bookValue"] = float(enriched["bookValue"]) * fx_rate
+        if enriched.get("fcfPerShare"):
+            enriched["fcfPerShare"] = float(enriched["fcfPerShare"]) * fx_rate
+        if enriched.get("netDebtPerShare"):
+            enriched["netDebtPerShare"] = float(enriched["netDebtPerShare"]) * fx_rate
+
+    if enriched.get("trailingEps"):
+        enriched["trailingEps"] = round(float(enriched["trailingEps"]), 2)
+    if enriched.get("bookValue"):
+        enriched["bookValue"] = round(float(enriched["bookValue"]), 2)
+
+    # 7. Median Historis PER & PBV Emiten (setelah penyelarasan kurs)
     if not hist.empty:
         median_hist_price = float(hist["Close"].median())
         eps_now = float(enriched.get("trailingEps") or 0)
