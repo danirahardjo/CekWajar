@@ -4,9 +4,11 @@ import streamlit as st
 from modules import (
     analyze_entry_conviction,
     analyze_massive_volume,
+    analyze_rsi_model,
     calculate_fair_value,
     calculate_trading_plan,
     create_forecast_chart,
+    create_rsi_chart,
     create_volume_radar_chart,
     fetch_intraday_volume_data,
     fetch_stock_data,
@@ -198,12 +200,13 @@ def halaman_analisa_emiten():
     # ==========================================
     # TABS DETAIL ANALISIS
     # ==========================================
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "⚡ Deteksi Volume Masif (Real-Time)",
         "📊 Grafik Prediksi & Harga Wajar",
         "💰 Rincian Valuasi Fundamental",
         "📰 Analisis Berita Dalam & Luar Negeri",
         "🛡️ Skor Kesehatan & Trading Plan",
+        "📉 Model Indikator RSI",
     ])
 
     with tab1:
