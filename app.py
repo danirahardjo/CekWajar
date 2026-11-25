@@ -500,9 +500,7 @@ def halaman_analisa_emiten():
         l_c2.metric("Estimasi Nilai Beli", f"Rp {plan['total_buy_rp']:,.0f}")
         l_c3.metric("Potensi Profit (TP1)", f"+Rp {plan['est_profit_tp1_rp']:,.0f}")
         l_c4.metric("Maks. Risiko Jika Kena SL", f"-Rp {plan['est_loss_if_sl_rp']:,.0f}")
-        
-    st.divider()
-    st.caption("⚠️ **Disclaimer:** CekWajar adalah alat bantu riset kuantitatif. Hasil valuasi, deteksi volume, dan prediksi Machine Learning bukan merupakan ajakan membeli atau menjual saham (DYOR).")
+
 with tab6:
         st.markdown("### 📉 Analisis Momentum & Panduan Titik Masuk (Model RSI Periode 14)")
 
@@ -597,6 +595,11 @@ with tab6:
             )
         else:
             st.caption("Belum ada perpotongan sinyal RSI pada rentang data historis yang dipilih.")
+
+    
+    st.divider()
+    st.caption("⚠️ **Disclaimer:** CekWajar adalah alat bantu riset kuantitatif. Hasil valuasi, deteksi volume, dan prediksi Machine Learning bukan merupakan ajakan membeli atau menjual saham (DYOR).")
+
 
 # ==========================================
 # NAVIGASI MULTI-PAGE KUSTOM
