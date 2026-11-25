@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import streamlit as st
 
@@ -154,6 +155,9 @@ def halaman_analisa_emiten():
 
     st.info(f"**Status Valuasi Fundamental:** {valuation['status']}")
 
+    # ==========================================
+    # PANEL SKOR KEYAKINAN MASUK (4 PILAR)
+    # ==========================================
     conviction = analyze_entry_conviction(
         hist_df=hist_df,
         valuation=valuation,
@@ -196,7 +200,7 @@ def halaman_analisa_emiten():
             use_container_width=True,
             hide_index=True,
         )
-        
+
     # ==========================================
     # TABS DETAIL ANALISIS
     # ==========================================
@@ -501,7 +505,7 @@ def halaman_analisa_emiten():
         l_c3.metric("Potensi Profit (TP1)", f"+Rp {plan['est_profit_tp1_rp']:,.0f}")
         l_c4.metric("Maks. Risiko Jika Kena SL", f"-Rp {plan['est_loss_if_sl_rp']:,.0f}")
 
-with tab6:
+    with tab6:
         st.markdown("### 📉 Analisis Momentum & Panduan Titik Masuk (Model RSI Periode 14)")
 
         r_ctrl1, r_ctrl2, r_ctrl3 = st.columns(3)
@@ -596,7 +600,6 @@ with tab6:
         else:
             st.caption("Belum ada perpotongan sinyal RSI pada rentang data historis yang dipilih.")
 
-    
     st.divider()
     st.caption("⚠️ **Disclaimer:** CekWajar adalah alat bantu riset kuantitatif. Hasil valuasi, deteksi volume, dan prediksi Machine Learning bukan merupakan ajakan membeli atau menjual saham (DYOR).")
 
@@ -604,7 +607,7 @@ with tab6:
 # ==========================================
 # NAVIGASI MULTI-PAGE KUSTOM
 # ==========================================
-pg = st.navigation([
+nav_pages = [
     st.Page(
         halaman_analisa_emiten,
         title="Analisa & Valuasi Emiten",
@@ -612,17 +615,27 @@ pg = st.navigation([
         url_path="analisa-emiten",
         default=True,
     ),
-    st.Page(
-        "pages/1_Radar_Volume_Pasar.py",
-        title="Radar Volume Pasar",
-        icon="📡",
-        url_path="radar-volume-pasar",
-    ),
-    st.Page(
-        "pages/2_Screener_Valuasi_Fundamental.py",
-        title="Screener Valuasi & F-Score",
-        icon="💎",
-        url_path="screener-valuasi",
-    ),
-])
+]
+
+if os.path.exists("pages/1_Radar_Volume_Pasar.py"):
+    nav_pages.append(
+        st.Page(
+            "pages/1_Radar_Volume_Pasar.py",
+            title="Radar Volume Pasar",
+            icon="📡",
+            url_path="radar-volume-pasar",
+        )
+    )
+
+if os.path.exists("pages/2_Screener_Valuasi_Fundamental.py"):
+    nav_pages.append(
+        st.Page(
+            "pages/2_Screener_Valuasi_Fundamental.py",
+            title="Screener Valuasi & F-Score",
+            icon="💎",
+            url_path="screener-valuasi",
+        )
+    )
+
+pg = st.navigation(nav_pages)
 pg.run()
