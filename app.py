@@ -500,7 +500,100 @@ def halaman_analisa_emiten():
         
     st.divider()
     st.caption("⚠️ **Disclaimer:** CekWajar adalah alat bantu riset kuantitatif. Hasil valuasi, deteksi volume, dan prediksi Machine Learning bukan merupakan ajakan membeli atau menjual saham (DYOR).")
+with tab6:
+        st.markdown("### 📉 Analisis Momentum & Panduan Titik Masuk (Model RSI Periode 14)")
 
+        r_ctrl1, r_ctrl2, r_ctrl3 = st.columns(3)
+        with r_ctrl1:
+            rsi_period = st.slider("Periode RSI (Wilder)", min_value=7, max_value=21, value=14, step=1)
+        with r_ctrl2:
+            ob_level = st.slider("Batas Overbought (Jenuh Beli)", min_value=65, max_value=85, value=70, step=5)
+        with r_ctrl3:
+            os_level = st.slider("Batas Oversold (Jenuh Jual)", min_value=15, max_value=35, value=30, step=5)
+
+        rsi_res = analyze_rsi_model(
+            hist_df=hist_df,
+            rsi_period=rsi_period,
+            ma_period=9,
+            overbought=ob_level,
+            oversold=os_level,
+        )
+
+        m_r1, m_r2, m_r3, m_r4 = st.columns(4)
+        m_r1.metric(
+            f"RSI ({rsi_period}) Terkini",
+            f"{rsi_res['last_rsi']:.1f}",
+            delta=f"{rsi_res['rsi_delta']:+.1f} vs kemarin",
+        )
+        m_r2.metric(
+            "Garis Sinyal (RSI MA-9)",
+            f"{rsi_res['last_rsi_ma']:.1f}",
+            delta="Di Atas MA-9" if rsi_res["last_rsi"] > rsi_res["last_rsi_ma"] else "Di Bawah MA-9",
+            delta_color="normal" if rsi_res["last_rsi"] > rsi_res["last_rsi_ma"] else "inverse",
+        )
+        m_r3.metric(
+            "Status Divergensi",
+            "Bullish Div 🟢" if "BULLISH" in rsi_res["divergence_status"] else ("Bearish Div 🔴" if "BEARISH" in rsi_res["divergence_status"] else "Normal"),
+        )
+        m_r4.metric(
+            "Akurasi 3 Sinyal Beli RSI (10D)",
+            f"{rsi_res['win_rate']:.1f}%" if rsi_res["total_buy_signals"] > 0 else "N/A",
+            delta=f"Avg {rsi_res['avg_return']:+.2f}% ({rsi_res['total_buy_signals']} sinyal)" if rsi_res["total_buy_signals"] > 0 else "Belum ada sinyal",
+        )
+
+        status_banner = (
+            f"**Keputusan Entry:** {rsi_res['entry_decision']}  \n"
+            f"**Kondisi Pasar:** {rsi_res['market_condition']} | **Divergensi:** {rsi_res['divergence_status']}  \n"
+            f"💡 **Analisis:** {rsi_res['action_hint']}"
+        )
+        if "🟢" in rsi_res["entry_decision"]:
+            st.success(status_banner)
+        elif "🔴" in rsi_res["entry_decision"]:
+            st.error(status_banner)
+        else:
+            st.warning(status_banner)
+
+        st.markdown("#### 🧭 Panduan Nilai & Sinyal RSI (Periode 14) untuk Keputusan Masuk")
+        df_guide = pd.DataFrame(rsi_res["guide_table"])
+
+        def highlight_active_zone(row):
+            if "POSISI SAAT INI" in str(row["Status Saham Kini"]):
+                return ["background-color: rgba(0, 229, 255, 0.16); font-weight: bold;"] * len(row)
+            return [""] * len(row)
+
+        st.dataframe(
+            df_guide.style.apply(highlight_active_zone, axis=1),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.plotly_chart(
+            create_rsi_chart(rsi_res["df"], overbought=ob_level, oversold=os_level),
+            use_container_width=True,
+        )
+
+        st.markdown("#### 📋 Riwayat Sinyal Beli / Jual RSI Terbaru")
+        rsi_df = rsi_res["df"]
+        sig_history = rsi_df[rsi_df["RSI_Signal"] != "Netral"].sort_index(ascending=False).head(15)
+        if not sig_history.empty:
+            log_rsi = pd.DataFrame({
+                "Tanggal": sig_history.index.strftime("%Y-%m-%d"),
+                "Harga Penutupan (Rp)": sig_history["Close"],
+                f"Nilai RSI ({rsi_period})": sig_history["RSI"],
+                "RSI Signal (MA-9)": sig_history["RSI_MA"],
+                "Sinyal Terdeteksi": sig_history["RSI_Signal"],
+            })
+            st.dataframe(
+                log_rsi.style.format({
+                    "Harga Penutupan (Rp)": "Rp {:,.0f}",
+                    f"Nilai RSI ({rsi_period})": "{:.1f}",
+                    "RSI Signal (MA-9)": "{:.1f}",
+                }),
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.caption("Belum ada perpotongan sinyal RSI pada rentang data historis yang dipilih.")
 
 # ==========================================
 # NAVIGASI MULTI-PAGE KUSTOM
